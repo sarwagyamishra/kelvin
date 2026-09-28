@@ -1,0 +1,2285 @@
+content://com.whatsapp.provider.media/item/7de20d93-2564-468b-88a4-cd9e82037bff<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light dark" />
+<title>PRAHARI — Personnel Stress &amp; Welfare Monitoring Portal</title>
+<script>
+  // Applied before paint so the page never flashes the wrong theme on load.
+  (function () {
+    try {
+      var stored = window.localStorage.getItem("prahari-theme");
+      var dark = stored ? stored === "dark" : !(window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches);
+      if (dark) document.documentElement.classList.add("dark");
+    } catch (e) {
+      document.documentElement.classList.add("dark");
+    }
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<!-- Tailwind CSS (JIT / Play CDN) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ["Inter", "system-ui", "sans-serif"],
+          mono: ["'JetBrains Mono'", "monospace"],
+          display: ["Oswald", "'Inter'", "system-ui", "sans-serif"],
+        },
+        colors: {
+          brass: {
+            50: "#faf6ec",
+            100: "#f3e8cf",
+            200: "#e6d3a3",
+            300: "#d8bb76",
+            400: "#cda658",
+            500: "#b98f42",
+            600: "#96712f",
+            700: "#785a28",
+            800: "#5c4522",
+            900: "#42311b",
+          },
+        },
+        boxShadow: {
+          brass: "0 0 0 1px rgba(205,166,88,0.4), 0 8px 30px -8px rgba(205,166,88,0.45)",
+        },
+      },
+    },
+  };
+</script>
+
+<!-- Import map: pins every package to a single shared React instance so hooks work correctly -->
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react/": "https://esm.sh/react@18.3.1/",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
+    "recharts": "https://esm.sh/recharts@2.12.7?external=react,react-dom",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react"
+  }
+}
+</script>
+
+<!-- Babel standalone: transpiles the JSX module below in-browser -->
+<script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
+
+<style>
+  html, body { background-color: #fafaf9; margin: 0; padding: 0; }
+  html.dark, html.dark body { background-color: #0c0a09; }
+  * { box-sizing: border-box; }
+
+  /* Ambient atmosphere: a quiet radial wash, not a spotlight */
+  body {
+    background-image:
+      radial-gradient(1100px 620px at 85% -10%, rgba(185,143,66,0.07), transparent 60%),
+      radial-gradient(900px 500px at 8% 110%, rgba(185,143,66,0.05), transparent 55%);
+    background-repeat: no-repeat;
+  }
+  html.dark body {
+    background-image:
+      radial-gradient(1100px 620px at 85% -10%, rgba(205,166,88,0.10), transparent 60%),
+      radial-gradient(900px 560px at 8% 110%, rgba(56,189,248,0.06), transparent 55%);
+    background-repeat: no-repeat;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d8bb76; border-radius: 9999px; }
+  html.dark ::-webkit-scrollbar-thumb { background: #785a28; }
+  ::-webkit-scrollbar-thumb:hover { background: #b98f42; }
+  html.dark ::-webkit-scrollbar-thumb:hover { background: #96712f; }
+
+  #root { min-height: 100vh; position: relative; }
+  #boot-fallback {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #a1a1aa;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    text-align: center;
+    padding: 24px;
+  }
+
+  /* Card lift: the one hover moment reused across dashboard cards */
+  .card-lift { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+  .card-lift:hover {
+    transform: translateY(-2px);
+    border-color: rgba(185,143,66,0.55) !important;
+    box-shadow: 0 20px 40px -22px rgba(185,143,66,0.35), 0 2px 10px rgba(12,10,9,0.06);
+  }
+  html.dark .card-lift:hover {
+    border-color: rgba(205,166,88,0.4) !important;
+    box-shadow: 0 0 0 1px rgba(205,166,88,0.14), 0 28px 60px -26px rgba(0,0,0,0.8);
+  }
+
+  @keyframes prahari-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(94,234,212,0.55); }
+    50% { opacity: 0.65; box-shadow: 0 0 0 4px rgba(94,234,212,0); }
+  }
+  .live-pulse { animation: prahari-pulse 2.4s ease-in-out infinite; }
+
+  /* Faint tactical grid behind the login screen */
+  .login-grid {
+    background-image:
+      linear-gradient(rgba(120,90,40,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120,90,40,0.05) 1px, transparent 1px);
+    background-size: 34px 34px;
+  }
+  html.dark .login-grid {
+    background-image:
+      linear-gradient(rgba(205,166,88,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(205,166,88,0.06) 1px, transparent 1px);
+    background-size: 34px 34px;
+  }
+</style>
+</head>
+<body class="font-sans">
+<div id="root"><div id="boot-fallback">LOADING PRAHARI&hellip;<br/><span style="opacity:.6;font-size:11px">If this message doesn't go away, check your internet connection — this app loads React, Recharts and icons from a CDN.</span></div></div>
+
+<script type="text/babel" data-type="module" data-presets="react">
+import React, { useState, useMemo, useEffect } from "react";
+import { createRoot } from "react-dom/client";
+import {
+  ResponsiveContainer,
+  RadialBarChart,
+  RadialBar,
+  PolarAngleAxis,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceLine,
+  ReferenceArea,
+} from "recharts";
+import {
+  Shield,
+  ShieldCheck,
+  ShieldAlert,
+  Moon,
+  Sun,
+  Activity,
+  Phone,
+  PhoneCall,
+  Calendar,
+  CalendarDays,
+  CalendarClock,
+  AlertTriangle,
+  TrendingUp,
+  Users,
+  Lock,
+  ChevronRight,
+  ChevronDown,
+  X,
+  Check,
+  MapPin,
+  Filter,
+  FileText,
+  Send,
+  ClipboardList,
+  BarChart3,
+  Gauge,
+  Stethoscope,
+  Wind,
+  Info,
+  MessageCircle,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  LogOut,
+  Sparkles,
+  Smile,
+} from "lucide-react";
+/* ---------------------------------------------------------------------- */
+/*  Mock data                                                              */
+/* ---------------------------------------------------------------------- */
+
+const SUBUNITS = [
+  {
+    id: "alpha",
+    name: "Alpha Company",
+    location: "Siachen Base Camp",
+    risk: 78,
+    deployment: 142,
+    nightShiftStreak: 16,
+    leaveBacklog: 62,
+    headcount: 118,
+    shiftType: "night-heavy",
+  },
+  {
+    id: "bravo",
+    name: "Bravo Squad",
+    location: "Kargil Sector",
+    risk: 54,
+    deployment: 96,
+    nightShiftStreak: 8,
+    leaveBacklog: 38,
+    headcount: 64,
+    shiftType: "mixed",
+  },
+  {
+    id: "charlie",
+    name: "Charlie Company",
+    location: "Leh Forward Post",
+    risk: 41,
+    deployment: 71,
+    nightShiftStreak: 5,
+    leaveBacklog: 22,
+    headcount: 102,
+    shiftType: "day-heavy",
+  },
+  {
+    id: "detachment-c",
+    name: "Detachment C",
+    location: "Nubra Valley Outpost",
+    risk: 69,
+    deployment: 118,
+    nightShiftStreak: 12,
+    leaveBacklog: 51,
+    headcount: 47,
+    shiftType: "night-heavy",
+  },
+];
+
+const ACTION_CARDS = [
+  {
+    id: 1,
+    severity: "high",
+    title: "Alpha Company night-patrol rotation exceeds 14 consecutive days",
+    detail:
+      "Recommend rebalancing rotation with Charlie Company to reduce circadian disruption risk.",
+    unit: "Alpha Company",
+  },
+  {
+    id: 2,
+    severity: "medium",
+    title: "Detachment C leave backlog above 50%",
+    detail:
+      "Schedule a staggered R&R block before the winter resupply window closes.",
+    unit: "Detachment C",
+  },
+  {
+    id: 3,
+    severity: "medium",
+    title: "Bravo Squad shift fatigue trending upward",
+    detail: "Introduce a 48-hour rest cycle after the next patrol rotation.",
+    unit: "Bravo Squad",
+  },
+];
+
+const CASES = [
+  {
+    id: "CASE-B702",
+    unit: "Alpha Company",
+    risk: 82,
+    flaggedDaysAgo: 0,
+    factors: [
+      {
+        label: "Operational Fatigue",
+        pct: 45,
+        detail: "35 consecutive days in a high-intensity sector",
+      },
+      {
+        label: "Disrupted Circadian Rhythm",
+        pct: 35,
+        detail: "11 of the last 14 shifts were night rotations",
+      },
+      {
+        label: "Self-reported Sleep Deficit",
+        pct: 20,
+        detail: "Average 4.1 hrs/night over the past two weeks",
+      },
+    ],
+  },
+  {
+    id: "CASE-F194",
+    unit: "Detachment C",
+    risk: 74,
+    flaggedDaysAgo: 1,
+    factors: [
+      {
+        label: "Isolation Duration",
+        pct: 40,
+        detail: "96 days at forward outpost without rotation",
+      },
+      {
+        label: "PHQ-4 Elevated Score",
+        pct: 33,
+        detail: "Self-assessment flagged moderate distress",
+      },
+      {
+        label: "Leave Deferral",
+        pct: 27,
+        detail: "Scheduled leave postponed twice this cycle",
+      },
+    ],
+  },
+  {
+    id: "CASE-A331",
+    unit: "Bravo Squad",
+    risk: 63,
+    flaggedDaysAgo: 2,
+    factors: [
+      {
+        label: "Consecutive Night Shifts",
+        pct: 48,
+        detail: "9 straight night patrols",
+      },
+      {
+        label: "Sleep Latency Increase",
+        pct: 32,
+        detail: "Average time-to-sleep up 40% this month",
+      },
+      {
+        label: "Mood Trend Decline",
+        pct: 20,
+        detail: "3-day decline in daily check-in scores",
+      },
+    ],
+  },
+];
+
+const BURNOUT_FORECAST = Array.from({ length: 30 }, (_, i) => {
+  const day = i + 1;
+  const base = 38 + day * 1.15;
+  const wobble = Math.sin(day / 3) * 4;
+  return {
+    day,
+    projected: Math.round(Math.min(96, base + wobble)),
+  };
+});
+
+const MOOD_ICONS = [
+  { value: 1, label: "Depleted" },
+  { value: 2, label: "Strained" },
+  { value: 3, label: "Steady" },
+  { value: 4, label: "Solid" },
+  { value: 5, label: "Sharp" },
+];
+
+const PERSONNEL = {
+  psi: 58,
+  psiLabel: "Elevated Strain",
+  deployment: {
+    daysIn: 87,
+    nightShiftStreak: 9,
+    daysToLeave: 14,
+  },
+};
+
+// Canned trajectory used by the "fast-forward" demo control on the
+// 5-week wellness trend card — a plausible rising-risk arc for the demo.
+const WELLNESS_DEMO_TRAJECTORY = [22, 34, 41, 58, 74];
+
+const DEMO_OTP = "482913";
+
+// Demo build: each role authenticates with its own fixed password so the
+// role selector on the login screen is a real credential, not just a label.
+const ROLE_CREDENTIALS = {
+  personnel: { password: "personnel123", label: "Personnel" },
+  welfare: { password: "welfare123", label: "Welfare Officer" },
+  commander: { password: "commander123", label: "Commander" },
+};
+
+const RESOURCES = [
+  {
+    id: "leave",
+    icon: CalendarDays,
+    title: "Leave & Rest Entitlements",
+    blurb: "How annual, casual, and emergency leave accrue — and how to apply.",
+    body: [
+      "Annual leave accrues at 2.5 days per completed month of service and can be carried forward up to 60 days before it lapses.",
+      "Emergency leave for a family medical situation can be sanctioned within 24 hours by your unit adjutant — no PSI score or check-in history is required to apply, and it does not draw against your annual balance.",
+      "Casual leave (up to 8 days per quarter) only needs sign-off from your immediate reporting officer, not the full chain.",
+      "To apply, use the unit leave portal or submit a written request through your JCO/NCO in charge. Keep a copy of the acknowledgment.",
+    ],
+  },
+  {
+    id: "family",
+    icon: Phone,
+    title: "Family Communication Windows",
+    blurb: "Scheduled call slots, video links, and mail routing to family.",
+    body: [
+      "Every subunit is allotted daily video-call windows at the welfare center — book a slot through your JCO up to 48 hours in advance.",
+      "Satellite phone access is available without booking for confirmed family emergencies.",
+      "Postal mail addressed via your unit's Field Post Office typically reaches home in 5–7 days; registered mail is tracked end to end.",
+      "A monthly 'family day' video session for immediate dependents can be arranged through the welfare officer if your posting allows it.",
+    ],
+  },
+  {
+    id: "financial",
+    icon: FileText,
+    title: "Financial & Pay Support",
+    blurb: "Advance pay, allotments to family, and low-interest welfare loans.",
+    body: [
+      "Advance pay of up to one month's salary can be requested for documented emergencies, repayable in installments over 6 months.",
+      "You can set up a standing allotment so a fixed portion of your pay is transferred to a family member's account automatically each cycle.",
+      "The Army/Force Welfare Fund offers low-interest personal loans for education, medical, or housing needs — apply through your unit's welfare cell.",
+      "A pay or allotment discrepancy can be raised confidentially with the unit accounts JCO; it is not visible to your reporting chain.",
+    ],
+  },
+  {
+    id: "grievance",
+    icon: ClipboardList,
+    title: "Grievance Redressal",
+    blurb: "Confidential channels to raise concerns about treatment or conduct.",
+    body: [
+      "Grievances can be filed anonymously through the unit's sealed complaint box or the welfare officer's confidential intake — neither is logged against your service record.",
+      "For issues involving your immediate chain of command, you may bypass it entirely and report directly to the next level up or to the welfare officer.",
+      "Serious conduct complaints are handled under a separate protected-disclosure process with a guaranteed response within 7 days.",
+      "Retaliation against anyone for filing a good-faith grievance is itself a reportable offense — say so explicitly if it happens.",
+    ],
+  },
+  {
+    id: "medical",
+    icon: Stethoscope,
+    title: "Medical & Physiotherapy Access",
+    blurb: "Sick call timings, physiotherapy, and referral to base hospital.",
+    body: [
+      "Sick call is held every morning before duty formation — no prior appointment needed, and attending does not require your section commander's approval.",
+      "Physiotherapy for duty-related strain (back, knees, shoulders) is available on a walk-in basis at the base medical unit twice a week.",
+      "Referral to the base or command hospital for specialist care is arranged directly by the medical officer once you're seen at sick call.",
+      "Mental health consultations logged at sick call are kept in a separate confidential file, not your general medical record used for fitness reviews.",
+    ],
+  },
+  {
+    id: "peer",
+    icon: Users,
+    title: "Peer Support Network",
+    blurb: "Trained buddy-system volunteers you can talk to informally, off the record.",
+    body: [
+      "Every subunit has 2–3 peer supporters — fellow personnel trained to listen and point you to resources, not to report back to command.",
+      "Conversations with a peer supporter are informal and not documented anywhere.",
+      "Peer supporters are rotated and refreshed every 6 months so you always have someone approachable at your rank and posting.",
+      "You can request a peer supporter from outside your own subunit if that feels more comfortable.",
+    ],
+  },
+  {
+    id: "sleep",
+    icon: Moon,
+    title: "Sleep Hygiene Protocol",
+    blurb: "Base-recommended routine for recovering sleep debt after night duty.",
+    body: [
+      "After a night-shift run, aim for a single consolidated sleep block in a darkened space rather than splitting rest across the day.",
+      "Avoid caffeine within 6 hours of your intended sleep window — it lingers longer than it feels like it does.",
+      "A fixed wake time, even on off days, resets your circadian rhythm faster than a fixed bedtime does.",
+      "If sleep debt persists beyond 3–4 days, flag it at sick call — persistent short sleep is a recognized precursor to duty errors, not just discomfort.",
+    ],
+  },
+  {
+    id: "breathing",
+    icon: Wind,
+    title: "Tactical Breathing & Grounding",
+    blurb: "Step-by-step techniques used before high-stress duty or right after it.",
+    body: [
+      "4-7-8 breathing: inhale 4 seconds, hold 7 seconds, exhale 8 seconds. Three rounds before a high-stress task lowers heart rate measurably.",
+      "Box breathing (4-4-4-4: in, hold, out, hold) is preferred by some for use during active duty since it's easier to keep rhythm under load.",
+      "5-4-3-2-1 grounding — name 5 things you see, 4 you hear, 3 you feel, 2 you smell, 1 you taste — is useful immediately after a high-stress incident to reorient.",
+      "None of these replace sleep or professional support — they're a bridge to get through the next hour, not a fix for the underlying load.",
+    ],
+  },
+  {
+    id: "escalation",
+    icon: TrendingUp,
+    title: "Chain-of-Command Escalation",
+    blurb: "When and how to escalate a welfare concern beyond your section.",
+    body: [
+      "If a concern isn't addressed by your section commander within a reasonable time, you're entitled to raise it one level up without needing their sign-off.",
+      "Welfare-related escalations (workload, rest, harassment) route through the welfare officer, not the operational chain — this keeps it separate from duty evaluations.",
+      "For anything urgent or safety-related, escalation can happen immediately and verbally; a written follow-up can come after.",
+      "Escalating a genuine concern is not an adverse mark against you and cannot be cited in performance reviews.",
+    ],
+  },
+  {
+    id: "emergency",
+    icon: PhoneCall,
+    title: "24/7 Emergency Line",
+    blurb: "Immediate connect for crisis situations — always available, always confidential.",
+    body: [
+      "The emergency welfare line is staffed around the clock and reachable from any base extension or personal phone without needing to go through your chain of command first.",
+      "Calls are confidential by default; details are only shared with your command if there's an immediate safety risk to you or someone else.",
+      "This line is for anything that feels urgent right now — it doesn't need to meet a threshold of severity to be worth calling.",
+      "If you can't reach it directly, the base medical officer or duty officer can connect you immediately.",
+    ],
+  },
+];
+
+/* ---------------------------------------------------------------------- */
+/*  Shared bits                                                            */
+/* ---------------------------------------------------------------------- */
+
+function riskColor(risk) {
+  if (risk >= 70)
+    return { text: "text-red-600 dark:text-red-400", bg: "bg-red-500", soft: "bg-red-500/10" };
+  if (risk >= 45)
+    return { text: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500", soft: "bg-amber-500/10" };
+  return { text: "text-emerald-700 dark:text-emerald-400", bg: "bg-emerald-500", soft: "bg-emerald-500/10" };
+}
+
+/* ---------------------------------------------------------------------- */
+/*  5-week wellness trend — scoring & recommendation helpers               */
+/* ---------------------------------------------------------------------- */
+
+function wellnessTier(score) {
+  if (score >= 75) return { label: "Priority", text: "text-red-600 dark:text-red-400", soft: "bg-red-500/10", bar: "bg-red-500", border: "border-red-500/40" };
+  if (score >= 55) return { label: "High", text: "text-orange-600 dark:text-orange-400", soft: "bg-orange-500/10", bar: "bg-orange-500", border: "border-orange-500/40" };
+  if (score >= 35) return { label: "Moderate", text: "text-amber-600 dark:text-amber-400", soft: "bg-amber-500/10", bar: "bg-amber-500", border: "border-amber-500/40" };
+  return { label: "Low", text: "text-emerald-700 dark:text-emerald-400", soft: "bg-emerald-500/10", bar: "bg-emerald-500", border: "border-emerald-500/40" };
+}
+
+function wellnessScoreFrom(mood, sleep, workload) {
+  return Math.max(5, Math.min(97, Math.round((10 - mood) * 5.2 + (10 - sleep) * 3.1 + workload * 2.7)));
+}
+
+function computeWellnessFactors(weeks) {
+  const n = weeks.length || 1;
+  const avgMood = weeks.reduce((a, w) => a + w.mood, 0) / n;
+  const avgSleep = weeks.reduce((a, w) => a + w.sleep, 0) / n;
+  const avgWorkload = weeks.reduce((a, w) => a + w.workload, 0) / n;
+  const slope = (weeks[weeks.length - 1]?.score ?? 0) - (weeks[0]?.score ?? 0);
+
+  const raw = [
+    { key: "workload", label: `Average workload pressure rated ${avgWorkload.toFixed(1)}/10 across 5 weeks`, mag: avgWorkload * 9 },
+    { key: "sleep", label: `Sleep quality averaged ${avgSleep.toFixed(1)}/10, below a healthy baseline`, mag: (10 - avgSleep) * 9 },
+    { key: "mood", label: `Self-reported mood trended to ${avgMood.toFixed(1)}/10 over the period`, mag: (10 - avgMood) * 9 },
+    { key: "trend", label: `Risk score climbed ${Math.max(slope, 0)} points over 5 weeks`, mag: Math.min(100, Math.max(slope, 0) * 2.6) },
+  ].sort((a, b) => b.mag - a.mag).slice(0, 4);
+
+  const total = raw.reduce((a, r) => a + r.mag, 0) || 1;
+  return raw.map((r) => ({ ...r, weight: Math.max(6, Math.round((r.mag / total) * 100)) }));
+}
+
+function wellnessRecommendationsFor(tierLabel, factors) {
+  const top = factors[0]?.key;
+  const actionsByTier = {
+    Low: [
+      "No action required — your indicators are within a healthy range.",
+      "Keep up your current sleep and duty rhythm.",
+      "Continue voluntary weekly check-ins so any change is caught early.",
+    ],
+    Moderate: [
+      "Consider an optional conversation with your peer support network this week.",
+      "Review your duty roster for the next fortnight — small adjustments help early.",
+      "Keep an eye on sleep; small consistent improvements compound.",
+    ],
+    High: [
+      "A welfare officer will reach out for a confidential, non-disciplinary conversation.",
+      "A temporary adjustment to night-shift frequency is recommended for 2 weeks.",
+      "Consider one mandatory rest day this rotation to recover baseline.",
+    ],
+    Priority: [
+      "Immediate confidential session recommended with a welfare officer or counselor.",
+      "Temporary stand-down from high-intensity duty is advised, pending review.",
+      "Clinical referral is available if you'd like — entirely your choice, entirely confidential.",
+    ],
+  };
+
+  const toplineByFactor = {
+    workload: "Your workload pressure is the single biggest contributor — that's the first thing worth addressing.",
+    sleep: "Sleep disruption is driving most of this signal — recovery starts there.",
+    mood: "Your mood self-ratings are the leading factor — a conversation with someone you trust can help.",
+    trend: "The pace of change matters as much as the level — this trend was caught before it peaked.",
+  };
+
+  return { topline: toplineByFactor[top], actions: actionsByTier[tierLabel] };
+}
+
+function SeverityBadge({ severity }) {
+  const map = {
+    high: { label: "High priority", cls: "bg-red-500/10 text-red-500 dark:text-red-400 border-red-500/30", dot: "bg-red-500" },
+    medium: { label: "Medium priority", cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30", dot: "bg-amber-500" },
+    low: { label: "Low priority", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30", dot: "bg-emerald-500" },
+  };
+  const m = map[severity] || map.low;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${m.cls}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${m.dot}`} />
+      {m.label}
+    </span>
+  );
+}
+
+function ModalShell({ title, subtitle, icon, onClose, children, wide }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/70 backdrop-blur-sm p-4">
+      <div
+        className={`relative w-full ${
+          wide ? "max-w-2xl" : "max-w-md"
+        } max-h-[90vh] overflow-y-auto rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 shadow-2xl shadow-black/10 dark:shadow-black/60`}
+      >
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brass-300 via-brass-500 to-brass-300 dark:from-brass-500 dark:via-brass-300 dark:to-brass-500" />
+        <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 px-5 py-4">
+          <div className="flex items-start gap-3">
+            {icon}
+            <div>
+              <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">{title}</h3>
+              {subtitle && <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{subtitle}</p>}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded p-1 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700 hover:text-stone-900 dark:hover:text-stone-100"
+            aria-label="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="px-5 py-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Theme toggle                                                            */
+/* ---------------------------------------------------------------------- */
+
+function ThemeToggle({ theme, onToggle, compact }) {
+  const isDark = theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className={`flex items-center justify-center rounded-md border border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700 hover:text-stone-900 dark:hover:text-stone-100 transition-colors ${
+        compact ? "h-8 w-8" : "h-9 w-9"
+      }`}
+    >
+      {isDark ? <Sun size={15} /> : <Moon size={15} />}
+    </button>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Login portal                                                            */
+/* ---------------------------------------------------------------------- */
+
+function generateCaptcha() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < 5; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function LoginPortal({ onAuthenticated, theme, onToggleTheme }) {
+  const [step, setStep] = useState("credentials");
+  const [serviceId, setServiceId] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [captchaCode, setCaptchaCode] = useState(generateCaptcha);
+  const [captchaInput, setCaptchaInput] = useState("");
+  const [role, setRole] = useState("personnel");
+  const [agree, setAgree] = useState(false);
+  const [error, setError] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [resendTimer, setResendTimer] = useState(30);
+
+  useEffect(() => {
+    if (step !== "otp" || resendTimer <= 0) return;
+    const t = setTimeout(() => setResendTimer((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [step, resendTimer]);
+
+  const roles = Object.entries(ROLE_CREDENTIALS).map(([id, r]) => ({ id, label: r.label }));
+
+  function refreshCaptcha() {
+    setCaptchaCode(generateCaptcha());
+    setCaptchaInput("");
+  }
+
+  function submitCredentials(e) {
+    e.preventDefault();
+    if (!serviceId.trim() || !password.trim()) {
+      setError("Enter your Service ID and password to continue.");
+      return;
+    }
+    if (password.trim() !== ROLE_CREDENTIALS[role].password) {
+      setError(`Incorrect password for ${ROLE_CREDENTIALS[role].label}. Check the demo password below and try again.`);
+      return;
+    }
+    if (captchaInput.trim().toUpperCase() !== captchaCode) {
+      setError("The verification code entered does not match. Try again.");
+      refreshCaptcha();
+      return;
+    }
+    if (!agree) {
+      setError("You must acknowledge the usage notice to proceed.");
+      return;
+    }
+    setError("");
+    setResendTimer(30);
+    setStep("otp");
+  }
+
+  function submitOtp(e) {
+    e.preventDefault();
+    if (otp.trim() !== DEMO_OTP) {
+      setOtpError("Incorrect verification code. Check the demo code below and try again.");
+      return;
+    }
+    setOtpError("");
+    onAuthenticated(role);
+  }
+
+  return (
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100 flex flex-col login-grid">
+      <div
+        className="text-center text-[11px] font-medium tracking-wide text-stone-300 py-1.5 px-4 border-b border-brass-500/30"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(135deg, #27272a 0px, #27272a 10px, #18181b 10px, #18181b 20px)",
+        }}
+      >
+        RESTRICTED ACCESS &middot; AUTHORIZED PERSONNEL ONLY &middot; ACTIVITY ON THIS SYSTEM IS LOGGED
+      </div>
+
+      <div className="flex flex-1 items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md">
+          <div className="mb-4 flex justify-end">
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+          </div>
+          <div className="mb-6 flex flex-col items-center text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-brass-300/70 dark:border-brass-400/40 bg-gradient-to-br from-brass-100 to-brass-200 dark:from-stone-800 dark:to-stone-900 text-brass-700 dark:text-brass-400 shadow-brass">
+              <Shield size={28} />
+            </div>
+            <h1
+              className="text-2xl font-semibold tracking-[0.12em] bg-gradient-to-r from-brass-600 via-brass-500 to-brass-700 dark:from-brass-300 dark:via-brass-400 dark:to-brass-500 bg-clip-text text-transparent"
+              style={{ fontFamily: "'Oswald', sans-serif" }}
+            >
+              PRAHARI
+            </h1>
+            <p className="mt-1.5 text-xs text-stone-600 dark:text-stone-500">Personnel Stress &amp; Welfare Monitoring Portal</p>
+          </div>
+
+          <div className="relative overflow-hidden rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800/95 p-6 shadow-2xl shadow-stone-900/5 dark:shadow-black/50">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brass-300 via-brass-500 to-brass-300 dark:from-brass-500 dark:via-brass-300 dark:to-brass-500" />
+            {step === "credentials" ? (
+              <form onSubmit={submitCredentials} className="space-y-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Secure sign-in</h2>
+                  <p className="mt-0.5 text-xs text-stone-600 dark:text-stone-500">Use your issued Service ID to continue.</p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-stone-500 dark:text-stone-400">Service / Personnel ID</label>
+                  <input
+                    type="text"
+                    value={serviceId}
+                    onChange={(e) => setServiceId(e.target.value)}
+                    placeholder="e.g. CAPF-2201847"
+                    className="w-full rounded-md border border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-900 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-600 focus:border-brass-500 dark:focus:border-brass-400 focus:outline-none focus:ring-2 focus:ring-brass-500/15 dark:focus:ring-brass-400/15"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-stone-500 dark:text-stone-400">Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter password"
+                      className="w-full rounded-md border border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-900 px-3 py-2 pr-9 text-sm text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-600 focus:border-brass-500 dark:focus:border-brass-400 focus:outline-none focus:ring-2 focus:ring-brass-500/15 dark:focus:ring-brass-400/15"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-600 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-300"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-stone-500 dark:text-stone-400">Sign in as</label>
+                  <div className="flex rounded-md border border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-900 p-0.5">
+                    {roles.map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setRole(r.id)}
+                        className={`flex-1 rounded px-2 py-1.5 text-[11px] font-medium transition-colors ${
+                          role === r.id ? "bg-brass-500 text-stone-950 font-semibold shadow-brass" : "text-stone-600 dark:text-stone-500 hover:text-stone-800 dark:hover:text-stone-200"
+                        }`}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 rounded-md border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 px-3 py-2 text-[11px] text-stone-600 dark:text-stone-500">
+                    <Info size={12} className="mr-1 inline -mt-0.5" />
+                    Demo build: password for {ROLE_CREDENTIALS[role].label} is{" "}
+                    <span className="text-stone-700 dark:text-stone-300" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      {ROLE_CREDENTIALS[role].password}
+                    </span>
+                    .
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-stone-500 dark:text-stone-400">Verification code</label>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="select-none rounded-md border border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-900 px-3 py-2 text-sm font-semibold tracking-[0.3em] text-stone-700 dark:text-stone-300"
+                      style={{ fontFamily: "'JetBrains Mono', monospace", textDecoration: "line-through", textDecorationColor: "#52525b" }}
+                    >
+                      {captchaCode}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={refreshCaptcha}
+                      className="rounded-md border border-stone-300 dark:border-stone-600 p-2 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700 hover:text-stone-800 dark:hover:text-stone-200"
+                      aria-label="Refresh code"
+                    >
+                      <RefreshCw size={14} />
+                    </button>
+                    <input
+                      type="text"
+                      value={captchaInput}
+                      onChange={(e) => setCaptchaInput(e.target.value)}
+                      placeholder="Enter code"
+                      className="min-w-0 flex-1 rounded-md border border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-900 px-3 py-2 text-sm text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-600 focus:border-brass-500 dark:focus:border-brass-400 focus:outline-none focus:ring-2 focus:ring-brass-500/15 dark:focus:ring-brass-400/15"
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-start gap-2 text-[11px] text-stone-600 dark:text-stone-500">
+                  <input
+                    type="checkbox"
+                    checked={agree}
+                    onChange={(e) => setAgree(e.target.checked)}
+                    className="mt-0.5 accent-brass-500 dark:accent-brass-400"
+                  />
+                  I acknowledge this system is monitored and I am an authorized user under my unit's access policy.
+                </label>
+
+                {error && (
+                  <div className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                    <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full rounded-md bg-brass-500 py-2.5 text-sm font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass"
+                >
+                  Sign in
+                </button>
+
+                <div className="flex items-center justify-between text-[11px] text-stone-600 dark:text-stone-500">
+                  <button type="button" className="hover:text-stone-700 dark:hover:text-stone-300">
+                    Forgot password?
+                  </button>
+                  <button type="button" className="hover:text-stone-700 dark:hover:text-stone-300">
+                    Contact IT support
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={submitOtp} className="space-y-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Two-factor verification</h2>
+                  <p className="mt-0.5 text-xs text-stone-600 dark:text-stone-500">
+                    Enter the 6-digit code sent to your registered mobile number ending ••92.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-stone-500 dark:text-stone-400">Verification code</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                    placeholder="6-digit code"
+                    className="w-full rounded-md border border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-900 px-3 py-2 text-center text-lg tracking-[0.5em] text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-600 focus:border-brass-500 dark:focus:border-brass-400 focus:outline-none focus:ring-2 focus:ring-brass-500/15 dark:focus:ring-brass-400/15"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  />
+                </div>
+
+                <div className="rounded-md border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 px-3 py-2 text-[11px] text-stone-600 dark:text-stone-500">
+                  <Info size={12} className="mr-1 inline -mt-0.5" />
+                  Demo build: use code <span className="text-stone-700 dark:text-stone-300" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{DEMO_OTP}</span> to continue.
+                </div>
+
+                {otpError && (
+                  <div className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                    <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                    {otpError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full rounded-md bg-brass-500 py-2.5 text-sm font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass"
+                >
+                  Verify &amp; continue
+                </button>
+
+                <div className="flex items-center justify-between text-[11px] text-stone-600 dark:text-stone-500">
+                  <button type="button" onClick={() => setStep("credentials")} className="hover:text-stone-700 dark:hover:text-stone-300">
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    disabled={resendTimer > 0}
+                    onClick={() => setResendTimer(30)}
+                    className="hover:text-stone-700 dark:hover:text-stone-300 disabled:cursor-not-allowed disabled:text-stone-300 dark:disabled:text-stone-700"
+                  >
+                    {resendTimer > 0 ? `Resend code in ${resendTimer}s` : "Resend code"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          <p className="mt-5 text-center text-[10px] leading-relaxed text-stone-400 dark:text-stone-600">
+            For official and authorized use only. Unauthorized access, use, or modification of this system
+            is prohibited and may be subject to disciplinary and legal action. Session timeout: 15 minutes idle.
+            <br />
+            Build 2.4.1 &middot; Directorate of Personnel Welfare
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Top bar                                                                 */
+/* ---------------------------------------------------------------------- */
+
+function TopBar({ role, onLogout, theme, onToggleTheme }) {
+  const roleMeta = {
+    personnel: { label: "Personnel", icon: Shield },
+    welfare: { label: "Welfare Officer", icon: Stethoscope },
+    commander: { label: "Commander", icon: BarChart3 },
+  }[role];
+  const RoleIcon = roleMeta.icon;
+  return (
+    <header className="sticky top-0 z-40 bg-white/90 dark:bg-stone-950/85 backdrop-blur relative">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 sm:px-6 lg:px-8 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-md border border-brass-300/70 dark:border-brass-400/40 bg-gradient-to-br from-brass-100 to-brass-200 dark:from-stone-800 dark:to-stone-900 text-brass-700 dark:text-brass-400 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.4)] dark:shadow-[inset_0_0_0_1px_rgba(205,166,88,0.08)]">
+            <Shield size={19} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <p
+                className="text-base font-semibold leading-tight tracking-[0.08em] bg-gradient-to-r from-brass-600 via-brass-500 to-brass-700 dark:from-brass-300 dark:via-brass-400 dark:to-brass-500 bg-clip-text text-transparent"
+                style={{ fontFamily: "'Oswald', sans-serif" }}
+              >
+                PRAHARI
+              </p>
+              <span className="hidden sm:flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 live-pulse" />
+                Live
+              </span>
+            </div>
+            <p className="text-[11px] leading-tight text-stone-600 dark:text-stone-500">Stress &amp; Welfare Monitoring Platform</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900/60 px-3 py-1.5 text-xs font-medium text-stone-700 dark:text-stone-300">
+            <RoleIcon size={14} className="text-brass-600 dark:text-brass-400" />
+            Signed in as {roleMeta.label}
+          </div>
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} compact />
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-1.5 rounded-md border border-stone-200 dark:border-stone-700 px-2.5 py-2 text-xs font-medium text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 hover:text-stone-800 dark:hover:text-stone-200"
+            aria-label="Log out"
+          >
+            <LogOut size={14} />
+          </button>
+        </div>
+      </div>
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-brass-400/60 to-transparent" />
+    </header>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Personnel View                                                          */
+/* ---------------------------------------------------------------------- */
+
+function PSIGauge({ value, label }) {
+  const risk = value >= 70 ? "high" : value >= 45 ? "medium" : "low";
+  const data = [{ name: "psi", value, fill: "url(#psiGradient)" }];
+  const tone =
+    risk === "high" ? "text-red-500 dark:text-red-400" : risk === "medium" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400";
+  const stops = risk === "high" ? ["#fca5a5", "#dc2626"] : risk === "medium" ? ["#fcd34d", "#b45309"] : ["#6ee7b7", "#047857"];
+  return (
+    <div className="relative flex flex-col items-center">
+      <div className="h-40 w-40">
+        <ResponsiveContainer width="100%" height="100%">
+          <RadialBarChart innerRadius="72%" outerRadius="100%" data={data} startAngle={90} endAngle={-270}>
+            <defs>
+              <linearGradient id="psiGradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor={stops[0]} />
+                <stop offset="100%" stopColor={stops[1]} />
+              </linearGradient>
+              <filter id="psiGlow" x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation="3.2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+            <RadialBar
+              background={{ fill: "rgba(120,90,40,0.14)" }}
+              dataKey="value"
+              cornerRadius={20}
+              fill="url(#psiGradient)"
+              style={{ filter: "url(#psiGlow)" }}
+            />
+          </RadialBarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+        <p className="text-3xl font-semibold text-stone-900 dark:text-stone-100" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          {value}
+        </p>
+        <p className="text-[10px] uppercase tracking-wide text-stone-600 dark:text-stone-500">PSI</p>
+      </div>
+      <p className={`mt-2 text-sm font-semibold ${tone}`}>{label}</p>
+    </div>
+  );
+}
+
+function CheckInModal({ onClose, onSubmit }) {
+  const [mood, setMood] = useState(null);
+  const [sleepHrs, setSleepHrs] = useState(6);
+  const [sleepLatency, setSleepLatency] = useState(20);
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+  const [answers, setAnswers] = useState({ q1: 0, q2: 0, q3: 0, q4: 0 });
+  const [submitted, setSubmitted] = useState(false);
+
+  const questions = [
+    "Little interest or pleasure in doing things",
+    "Feeling down, depressed, or hopeless",
+    "Feeling nervous, anxious, or on edge",
+    "Not being able to stop or control worrying",
+  ];
+  const scaleLabels = ["Not at all", "Several days", "More than half", "Nearly every day"];
+
+  function submit() {
+    setSubmitted(true);
+    onSubmit && onSubmit({ mood, sleepHrs, sleepLatency, answers });
+  }
+
+  if (submitted) {
+    return (
+      <ModalShell
+        title="Check-in received"
+        subtitle="Logged privately to your personal record"
+        icon={<Check size={18} className="mt-0.5 text-emerald-700 dark:text-emerald-400" />}
+        onClose={onClose}
+      >
+        <div className="flex flex-col items-center gap-3 py-6 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/30">
+            <Check size={22} />
+          </div>
+          <p className="text-sm text-stone-700 dark:text-stone-300">
+            Your entry is encrypted and isolated from your service record. Only you can see it.
+          </p>
+          <button
+            onClick={onClose}
+            className="mt-2 rounded-md bg-brass-500 px-4 py-2 text-sm font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass"
+          >
+            Done
+          </button>
+        </div>
+      </ModalShell>
+    );
+  }
+
+  return (
+    <ModalShell
+      title="30-second wellness check-in"
+      subtitle="Private — never shared with your chain of command"
+      icon={<Activity size={18} className="mt-0.5 text-stone-700 dark:text-stone-300" />}
+      onClose={onClose}
+      wide
+    >
+      <div className="space-y-6">
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">How are you feeling today?</p>
+          <div className="grid grid-cols-5 gap-2">
+            {MOOD_ICONS.map((m) => (
+              <button
+                key={m.value}
+                onClick={() => setMood(m.value)}
+                className={`flex flex-col items-center gap-1.5 rounded-md border px-2 py-3 text-xs transition-colors ${
+                  mood === m.value
+                    ? "border-stone-500 dark:border-stone-400 bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100"
+                    : "border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 text-stone-500 dark:text-stone-400 hover:border-stone-300 dark:hover:border-stone-600"
+                }`}
+              >
+                <span
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  {m.value}
+                </span>
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">Sleep duration</label>
+              <span className="text-xs text-stone-700 dark:text-stone-300" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                {sleepHrs} hrs
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="10"
+              step="0.5"
+              value={sleepHrs}
+              onChange={(e) => setSleepHrs(parseFloat(e.target.value))}
+              className="w-full accent-brass-500 dark:accent-brass-400"
+            />
+          </div>
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">Sleep latency</label>
+              <span className="text-xs text-stone-700 dark:text-stone-300" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                {sleepLatency} min
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="90"
+              step="5"
+              value={sleepLatency}
+              onChange={(e) => setSleepLatency(parseInt(e.target.value, 10))}
+              className="w-full accent-brass-500 dark:accent-brass-400"
+            />
+          </div>
+        </div>
+
+        <div className="rounded-md border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900">
+          <button
+            onClick={() => setShowQuestionnaire((s) => !s)}
+            className="flex w-full items-center justify-between px-4 py-3 text-left"
+          >
+            <span className="text-xs font-medium text-stone-700 dark:text-stone-300">Optional: PHQ-4 / GAD-2 screening</span>
+            <ChevronDown size={16} className={`text-stone-600 dark:text-stone-500 transition-transform ${showQuestionnaire ? "rotate-180" : ""}`} />
+          </button>
+          {showQuestionnaire && (
+            <div className="space-y-4 border-t border-stone-200 dark:border-stone-700 px-4 py-4">
+              {questions.map((q, idx) => {
+                const key = `q${idx + 1}`;
+                return (
+                  <div key={key}>
+                    <p className="mb-1.5 text-xs text-stone-700 dark:text-stone-300">{q}</p>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {scaleLabels.map((sl, si) => (
+                        <button
+                          key={sl}
+                          onClick={() => setAnswers((a) => ({ ...a, [key]: si }))}
+                          className={`rounded border px-1.5 py-1.5 text-[10px] leading-tight ${
+                            answers[key] === si
+                              ? "border-stone-500 dark:border-stone-400 bg-stone-100 dark:bg-stone-700 text-stone-900 dark:text-stone-100"
+                              : "border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-500 hover:border-stone-300 dark:hover:border-stone-600"
+                          }`}
+                        >
+                          {sl}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <p className="flex items-center gap-1.5 text-[11px] text-stone-600 dark:text-stone-500">
+            <Lock size={12} /> End-to-end encrypted, isolated from records
+          </p>
+          <button
+            disabled={mood === null}
+            onClick={submit}
+            className="rounded-md bg-brass-500 px-4 py-2 text-sm font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass disabled:cursor-not-allowed disabled:bg-stone-200 dark:disabled:bg-stone-700 disabled:text-stone-400 dark:disabled:text-stone-500"
+          >
+            Submit check-in
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Support & resources                                                    */
+/* ---------------------------------------------------------------------- */
+
+function ResourceCard({ resource, onOpen }) {
+  const Icon = resource.icon;
+  return (
+    <button
+      onClick={() => onOpen(resource)}
+      className="card-lift group flex flex-col items-start gap-3 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-4 text-left h-full"
+    >
+      <div className="flex w-full items-start justify-between">
+        <div className="flex h-9 w-9 items-center justify-center rounded-md border border-brass-300/60 dark:border-brass-400/30 bg-brass-50 dark:bg-stone-900 text-brass-600 dark:text-brass-400">
+          <Icon size={16} />
+        </div>
+        <Info size={14} className="mt-1 text-stone-300 dark:text-stone-700 transition-colors group-hover:text-brass-500 dark:group-hover:text-brass-400" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{resource.title}</p>
+        <p className="mt-1 text-xs leading-relaxed text-stone-600 dark:text-stone-500">{resource.blurb}</p>
+      </div>
+      <span className="mt-auto flex items-center gap-1 pt-1 text-[11px] font-medium text-brass-600 dark:text-brass-400">
+        View details <ChevronRight size={12} />
+      </span>
+    </button>
+  );
+}
+
+function ResourceDetailModal({ resource, onClose }) {
+  const Icon = resource.icon;
+  return (
+    <ModalShell
+      title={resource.title}
+      subtitle="Support & resources"
+      icon={
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-brass-300/60 dark:border-brass-400/30 bg-brass-50 dark:bg-stone-900 text-brass-600 dark:text-brass-400">
+          <Icon size={16} />
+        </div>
+      }
+      onClose={onClose}
+    >
+      <ul className="space-y-3">
+        {resource.body.map((line, i) => (
+          <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed text-stone-700 dark:text-stone-300">
+            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brass-500" />
+            {line}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-5 flex items-start gap-2.5 rounded-md border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900/60 px-3.5 py-3 text-xs text-stone-600 dark:text-stone-500">
+        <Info size={14} className="mt-0.5 shrink-0 text-stone-400 dark:text-stone-600" />
+        Policies vary slightly by command — confirm specifics with your welfare officer or unit adjutant.
+      </div>
+    </ModalShell>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  5-week wellness trend card                                             */
+/* ---------------------------------------------------------------------- */
+
+function useWeeklyWellnessLog() {
+  const [weeks, setWeeks] = useState([]); // {week, score, mood, sleep, workload}
+  const [mood, setMood] = useState(6);
+  const [sleep, setSleep] = useState(6);
+  const [workload, setWorkload] = useState(6);
+
+  function logWeek() {
+    if (weeks.length >= 5) return;
+    const score = wellnessScoreFrom(mood, sleep, workload);
+    setWeeks((w) => [...w, { week: `Wk ${w.length + 1}`, score, mood, sleep, workload }]);
+  }
+
+  function fastForward() {
+    setWeeks((w) => {
+      const next = [...w];
+      for (let i = w.length; i < 5; i++) {
+        next.push({
+          week: `Wk ${i + 1}`,
+          score: WELLNESS_DEMO_TRAJECTORY[i],
+          mood: Math.max(2, 8 - i * 1.3),
+          sleep: Math.max(2, 7.5 - i * 1.2),
+          workload: Math.min(9.5, 5 + i * 1.1),
+        });
+      }
+      return next;
+    });
+  }
+
+  function reset() {
+    setWeeks([]);
+    setMood(6);
+    setSleep(6);
+    setWorkload(6);
+  }
+
+  return { weeks, mood, setMood, sleep, setSleep, workload, setWorkload, logWeek, fastForward, reset };
+}
+
+function WellnessStepper({ count, total = 5 }) {
+  return (
+    <div className="mb-5 flex items-center gap-1.5">
+      {Array.from({ length: total }).map((_, i) => {
+        const done = i < count;
+        const current = i === count;
+        return (
+          <React.Fragment key={i}>
+            <div
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
+                done
+                  ? "border-brass-500 bg-brass-500 text-stone-950"
+                  : current
+                  ? "border-stone-500 dark:border-stone-400 bg-stone-800 dark:bg-stone-700 text-white"
+                  : "border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-900 text-stone-500 dark:text-stone-400"
+              }`}
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {done ? <Check size={13} /> : i + 1}
+            </div>
+            {i < total - 1 && (
+              <div className={`h-0.5 flex-1 rounded-full ${i < count ? "bg-brass-500" : "bg-stone-200 dark:bg-stone-700"}`} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+function WellnessSliderRow({ icon: Icon, label, value, setValue, lowLabel, highLabel }) {
+  return (
+    <div className="mb-4">
+      <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-stone-700 dark:text-stone-300">
+        <span className="flex items-center gap-1.5">
+          <Icon size={13} className="text-stone-500 dark:text-stone-400" /> {label}
+        </span>
+        <span className="text-stone-500 dark:text-stone-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          {value}/10
+        </span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={10}
+        value={value}
+        onChange={(e) => setValue(Number(e.target.value))}
+        className="w-full accent-brass-500 dark:accent-brass-400"
+      />
+      <div className="mt-1 flex justify-between text-[10px] text-stone-500 dark:text-stone-500">
+        <span>{lowLabel}</span>
+        <span>{highLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+function WellnessTrajectoryCard() {
+  const { weeks, mood, setMood, sleep, setSleep, workload, setWorkload, logWeek, fastForward, reset } = useWeeklyWellnessLog();
+  const [revealed, setRevealed] = useState(false);
+  const complete = weeks.length >= 5;
+  const latest = weeks[weeks.length - 1]?.score ?? 0;
+  const tier = wellnessTier(latest);
+  const factors = useMemo(() => (complete ? computeWellnessFactors(weeks) : []), [complete, weeks]);
+  const rec = useMemo(() => (complete ? wellnessRecommendationsFor(tier.label, factors) : null), [complete, tier.label, factors]);
+
+  useEffect(() => {
+    if (complete) {
+      const t = setTimeout(() => setRevealed(true), 120);
+      return () => clearTimeout(t);
+    }
+    setRevealed(false);
+  }, [complete]);
+
+  const chartData = [
+    ...weeks,
+    ...Array.from({ length: 5 - weeks.length }).map((_, i) => ({ week: `Wk ${weeks.length + i + 1}`, score: null })),
+  ];
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <div className="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-5">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">5-week wellness trend</h2>
+          <TrendingUp size={16} className="text-stone-500 dark:text-stone-400" />
+        </div>
+        <p className="mb-4 text-xs text-stone-600 dark:text-stone-500">
+          A rolling self-reported baseline. PRAHARI only surfaces a signal to a welfare officer if a meaningful change from your own baseline appears.
+        </p>
+        <WellnessStepper count={weeks.length} />
+
+        {!complete ? (
+          <>
+            <p className="mb-3 text-xs font-semibold text-stone-800 dark:text-stone-200">Week {weeks.length + 1} check-in</p>
+            <WellnessSliderRow icon={Smile} label="Overall mood this week" value={mood} setValue={setMood} lowLabel="Struggling" highLabel="Steady" />
+            <WellnessSliderRow icon={Moon} label="Sleep quality" value={sleep} setValue={setSleep} lowLabel="Poor" highLabel="Restful" />
+            <WellnessSliderRow icon={Gauge} label="Workload pressure" value={workload} setValue={setWorkload} lowLabel="Manageable" highLabel="Overwhelming" />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={logWeek}
+                className="flex items-center gap-1.5 rounded-md bg-brass-500 px-3.5 py-2 text-xs font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass"
+              >
+                <Send size={13} /> Log week {weeks.length + 1}
+              </button>
+              <button
+                onClick={fastForward}
+                className="flex items-center gap-1.5 rounded-md border border-stone-300 dark:border-stone-600 px-3.5 py-2 text-xs font-medium text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700"
+              >
+                <Sparkles size={13} /> Fast-forward remaining weeks
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3 rounded-md bg-stone-50 dark:bg-stone-900 px-4 py-3">
+            <Check size={17} className="text-emerald-600 dark:text-emerald-400" />
+            <p className="text-xs text-stone-700 dark:text-stone-300">5-week monitoring period complete — your personalized read-out is ready.</p>
+            <button
+              onClick={reset}
+              className="ml-auto rounded-md border border-stone-300 dark:border-stone-600 px-2.5 py-1 text-[11px] font-medium text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700"
+            >
+              Restart demo
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-5">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Your wellness trajectory</h2>
+          {weeks.length > 0 && (
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${tier.soft} ${tier.text}`}>{tier.label}</span>
+          )}
+        </div>
+        <div className="h-[210px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 6, right: 10, left: -18, bottom: 0 }}>
+              <CartesianGrid stroke="rgba(120,90,40,0.16)" vertical={false} />
+              <XAxis dataKey="week" tick={{ fontSize: 11, fill: "#8a8178" }} axisLine={{ stroke: "rgba(120,90,40,0.25)" }} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "#8a8178" }} axisLine={false} tickLine={false} />
+              <ReferenceArea y1={55} y2={100} fill="#dc2626" fillOpacity={0.05} />
+              <ReferenceLine y={55} stroke="#b98f42" strokeDasharray="4 4" />
+              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid rgba(120,90,40,0.3)" }} />
+              <Line type="monotone" dataKey="score" stroke="#96712f" strokeWidth={2.5} dot={{ r: 3.5, fill: "#96712f" }} connectNulls={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="mt-1 text-[11px] text-stone-500 dark:text-stone-500">
+          Dashed line marks the review threshold. Only you can see this exact chart.
+        </p>
+      </div>
+
+      {complete && rec && (
+        <div
+          className="lg:col-span-2 transition-all duration-500"
+          style={{ opacity: revealed ? 1 : 0, transform: revealed ? "translateY(0)" : "translateY(8px)" }}
+        >
+          <div className={`rounded-lg border-2 ${tier.border} bg-white dark:bg-stone-800 p-5`}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex gap-3">
+                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${tier.soft} ${tier.text}`}>
+                  <Sparkles size={19} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Your personalized read-out</h3>
+                  <p className="mt-0.5 max-w-md text-xs text-stone-600 dark:text-stone-500">{rec.topline}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className={`text-2xl font-semibold leading-none ${tier.text}`} style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  {latest}
+                </p>
+                <p className="mt-1 text-[11px] text-stone-600 dark:text-stone-500">{tier.label} risk signal</p>
+              </div>
+            </div>
+
+            <div className="my-4 flex items-start gap-2.5 rounded-md border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 px-3.5 py-3 text-xs text-stone-600 dark:text-stone-500">
+              <Lock size={14} className="mt-0.5 shrink-0" />
+              This is a risk signal, not a diagnosis. Nothing here is shared with your commander individually — welfare outreach is confidential and never disciplinary.
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <p className="mb-2.5 text-xs font-semibold text-stone-800 dark:text-stone-200">What's driving this</p>
+                <div className="space-y-2.5">
+                  {factors.map((f) => (
+                    <div key={f.key}>
+                      <div className="mb-1 flex items-center justify-between text-xs">
+                        <span className="text-stone-700 dark:text-stone-300">{f.label}</span>
+                        <span className="text-stone-500 dark:text-stone-400">{f.weight}%</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-stone-100 dark:bg-stone-900">
+                        <div className={`h-full rounded-full ${tier.bar}`} style={{ width: `${f.weight}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2.5 text-xs font-semibold text-stone-800 dark:text-stone-200">Recommended next steps</p>
+                <div className="space-y-2.5">
+                  {rec.actions.map((a) => (
+                    <div key={a} className="flex gap-2 text-xs leading-relaxed text-stone-700 dark:text-stone-300">
+                      <CalendarClock size={14} className={`mt-0.5 shrink-0 ${tier.text}`} />
+                      {a}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button className="flex items-center gap-1.5 rounded-md bg-brass-500 px-3.5 py-2 text-xs font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass">
+                <MessageCircle size={13} /> Accept plan &amp; notify welfare officer
+              </button>
+              <button className="rounded-md border border-stone-300 dark:border-stone-600 px-3.5 py-2 text-xs font-medium text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700">
+                Request human review first
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PersonnelView() {
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [lastCheckIn, setLastCheckIn] = useState(null);
+  const [openResource, setOpenResource] = useState(null);
+  const { psi, psiLabel, deployment } = PERSONNEL;
+
+  const tips =
+    psi >= 70
+      ? ["4-7-8 tactical breathing before rack time", "Request a welfare check-in with base counselor", "Prioritize 7+ hrs sleep tonight"]
+      : psi >= 45
+      ? ["4-7-8 tactical breathing, 3 rounds tonight", "Follow sleep hygiene protocol before next shift", "Short daylight walk between duties"]
+      : ["Maintain current sleep hygiene routine", "Keep up your check-in streak", "Stay hydrated during patrol hours"];
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="flex items-start gap-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+        <ShieldCheck size={18} className="mt-0.5 shrink-0 text-emerald-700 dark:text-emerald-400" />
+        <p className="text-sm text-emerald-800 dark:text-emerald-100">
+          Your data is isolated. Personal entries are never visible to unit commanders or attached to your service record.
+        </p>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Daily check-in</h2>
+            <Activity size={16} className="text-stone-500 dark:text-stone-400" />
+          </div>
+          {lastCheckIn ? (
+            <div className="flex flex-col items-start gap-2">
+              <p className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+                <Check size={14} /> Logged today
+              </p>
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                Mood {lastCheckIn.mood}/5 &middot; {lastCheckIn.sleepHrs} hrs sleep
+              </p>
+              <button
+                onClick={() => setCheckInOpen(true)}
+                className="mt-1 text-xs font-medium text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100"
+              >
+                Update entry
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="mb-4 text-xs text-stone-500 dark:text-stone-400">
+                Takes about 30 seconds. Mood, sleep, and an optional short screening.
+              </p>
+              <button
+                onClick={() => setCheckInOpen(true)}
+                className="w-full rounded-md bg-brass-500 py-2 text-sm font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass"
+              >
+                Start check-in
+              </button>
+            </>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-5">
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Personal Stress Index</h2>
+            <Gauge size={16} className="text-stone-500 dark:text-stone-400" />
+          </div>
+          <div className="flex items-center justify-center py-2">
+            <PSIGauge value={psi} label={psiLabel} />
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {tips.map((t, i) => (
+              <p key={i} className="flex items-start gap-1.5 text-xs text-stone-500 dark:text-stone-400">
+                <Wind size={12} className="mt-0.5 shrink-0 text-stone-600 dark:text-stone-500" />
+                {t}
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Confidential tele-support</h2>
+          <Lock size={14} className="text-emerald-700 dark:text-emerald-400" />
+        </div>
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs text-stone-500 dark:text-stone-400">Connect one-on-one with your base counselor.</p>
+            <p className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-400">
+              <Lock size={11} /> End-to-end encrypted session
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button className="flex items-center gap-1.5 rounded-md border border-stone-300 dark:border-stone-600 px-3 py-2 text-xs font-medium text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700">
+              <MessageCircle size={14} /> Chat
+            </button>
+            <button className="flex items-center gap-1.5 rounded-md bg-brass-500 px-3 py-2 text-xs font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass">
+              <PhoneCall size={14} /> Call now
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Duty &amp; roster health</h2>
+          <CalendarDays size={16} className="text-stone-500 dark:text-stone-400" />
+        </div>
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="rounded-md bg-stone-50 dark:bg-stone-900 py-3">
+            <p className="text-lg font-semibold text-stone-900 dark:text-stone-100" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              {deployment.daysIn}
+            </p>
+            <p className="mt-0.5 text-[11px] text-stone-600 dark:text-stone-500">Days deployed</p>
+          </div>
+          <div className="rounded-md bg-stone-50 dark:bg-stone-900 py-3">
+            <p className="text-lg font-semibold text-amber-600 dark:text-amber-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              {deployment.nightShiftStreak}
+            </p>
+            <p className="mt-0.5 text-[11px] text-stone-600 dark:text-stone-500">Consecutive nights</p>
+          </div>
+          <div className="rounded-md bg-stone-50 dark:bg-stone-900 py-3">
+            <p className="text-lg font-semibold text-emerald-700 dark:text-emerald-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              {deployment.daysToLeave}
+            </p>
+            <p className="mt-0.5 text-[11px] text-stone-600 dark:text-stone-500">Days to home leave</p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-stone-50 dark:bg-stone-900">
+            <div
+              className="h-full rounded-full bg-stone-400 dark:bg-stone-500"
+              style={{ width: `${Math.min(100, (deployment.daysIn / (deployment.daysIn + deployment.daysToLeave)) * 100)}%` }}
+            />
+          </div>
+          <div className="mt-1.5 flex justify-between text-[10px] text-stone-600 dark:text-stone-500">
+            <span>Deployment start</span>
+            <span>Scheduled leave</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-stone-900 dark:text-stone-100 font-display">
+          <Sparkles size={16} className="text-brass-600 dark:text-brass-400" />
+          5-Week Wellness Trend
+        </div>
+        <WellnessTrajectoryCard />
+      </div>
+
+      <div>
+        <div className="mb-1 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-stone-900 dark:text-stone-100 font-display">
+          <ClipboardList size={16} className="text-brass-600 dark:text-brass-400" />
+          Support &amp; Resources
+        </div>
+        <p className="mb-4 text-xs text-stone-600 dark:text-stone-500">
+          Entitlements, escalation routes, and coping tools available to you — each explained in plain terms. Tap any card for the full breakdown.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {RESOURCES.map((r) => (
+            <ResourceCard key={r.id} resource={r} onOpen={setOpenResource} />
+          ))}
+        </div>
+      </div>
+
+      {checkInOpen && (
+        <CheckInModal onClose={() => setCheckInOpen(false)} onSubmit={(data) => setLastCheckIn(data)} />
+      )}
+      {openResource && <ResourceDetailModal resource={openResource} onClose={() => setOpenResource(null)} />}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Commander View                                                          */
+/* ---------------------------------------------------------------------- */
+
+function SubunitCard({ unit }) {
+  const c = riskColor(unit.risk);
+  return (
+    <div className="card-lift rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{unit.name}</p>
+          <p className="mt-0.5 flex items-center gap-1 text-[11px] text-stone-600 dark:text-stone-500">
+            <MapPin size={11} /> {unit.location}
+          </p>
+        </div>
+        <span className={`rounded px-2 py-0.5 text-xs font-semibold ${c.soft} ${c.text}`}>{unit.risk}</span>
+      </div>
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-stone-50 dark:bg-stone-900">
+        <div className={`h-full rounded-full ${c.bg}`} style={{ width: `${unit.risk}%` }} />
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-xs font-medium text-stone-800 dark:text-stone-200" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            {unit.deployment}d
+          </p>
+          <p className="text-[10px] text-stone-600 dark:text-stone-500">Deployed</p>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-stone-800 dark:text-stone-200" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            {unit.nightShiftStreak}
+          </p>
+          <p className="text-[10px] text-stone-600 dark:text-stone-500">Night streak</p>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-stone-800 dark:text-stone-200" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            {unit.leaveBacklog}%
+          </p>
+          <p className="text-[10px] text-stone-600 dark:text-stone-500">Leave backlog</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeatmapGrid({ units }) {
+  const rows = [
+    { key: "nightShiftStreak", label: "Shift fatigue (night streak)", max: 20 },
+    { key: "deployment", label: "Deployment duration", max: 160 },
+    { key: "leaveBacklog", label: "Leave backlog", max: 100 },
+  ];
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[480px] border-separate border-spacing-1.5">
+        <thead>
+          <tr>
+            <th className="text-left text-[11px] font-medium text-stone-600 dark:text-stone-500"> </th>
+            {units.map((u) => (
+              <th key={u.id} className="pb-1 text-center text-[11px] font-medium text-stone-500 dark:text-stone-400">
+                {u.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key}>
+              <td className="pr-2 text-[11px] text-stone-500 dark:text-stone-400">{row.label}</td>
+              {units.map((u) => {
+                const val = u[row.key];
+                const intensity = Math.min(1, val / row.max);
+                const bg = intensity > 0.66 ? "bg-red-500" : intensity > 0.33 ? "bg-amber-500" : "bg-emerald-500";
+                const opacity = 0.25 + intensity * 0.75;
+                return (
+                  <td key={u.id} className="p-0">
+                    <div
+                      className={`flex h-12 items-center justify-center rounded ${bg} text-xs font-medium text-stone-950`}
+                      style={{ opacity, fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      {row.key === "leaveBacklog" ? `${val}%` : row.key === "deployment" ? `${val}d` : val}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function BurnoutChart() {
+  return (
+    <div className="h-56 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={BURNOUT_FORECAST} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
+          <defs>
+            <linearGradient id="burnoutLine" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#d8bb76" />
+              <stop offset="100%" stopColor="#96712f" />
+            </linearGradient>
+            <filter id="burnoutGlow" x="-20%" y="-60%" width="140%" height="220%">
+              <feGaussianBlur stdDeviation="2.5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <CartesianGrid stroke="rgba(120,90,40,0.16)" strokeDasharray="3 3" vertical={false} />
+          <XAxis
+            dataKey="day"
+            tick={{ fill: "#8a8178", fontSize: 10 }}
+            tickLine={false}
+            axisLine={{ stroke: "rgba(120,90,40,0.25)" }}
+            label={{ value: "Day", position: "insideBottom", offset: -4, fill: "#8a8178", fontSize: 10 }}
+          />
+          <YAxis domain={[0, 100]} tick={{ fill: "#8a8178", fontSize: 10 }} tickLine={false} axisLine={{ stroke: "rgba(120,90,40,0.25)" }} width={30} />
+          <Tooltip
+            contentStyle={{ background: "#1c1917", border: "1px solid rgba(205,166,88,0.4)", borderRadius: 8, fontSize: 12, boxShadow: "0 12px 30px -10px rgba(0,0,0,0.6)" }}
+            labelStyle={{ color: "#cda658" }}
+            itemStyle={{ color: "#f5f5f4" }}
+          />
+          <ReferenceLine y={70} stroke="#dc2626" strokeDasharray="4 4" label={{ value: "Critical", position: "right", fill: "#dc2626", fontSize: 10 }} />
+          <Line type="monotone" dataKey="projected" stroke="url(#burnoutLine)" strokeWidth={2.5} dot={false} name="Projected exhaustion" style={{ filter: "url(#burnoutGlow)" }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function ActionCard({ action }) {
+  return (
+    <div className="card-lift rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <SeverityBadge severity={action.severity} />
+        <span className="text-[11px] text-stone-600 dark:text-stone-500">{action.unit}</span>
+      </div>
+      <p className="text-sm font-medium text-stone-900 dark:text-stone-100">{action.title}</p>
+      <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{action.detail}</p>
+      <div className="mt-3 flex gap-2">
+        <button className="rounded-md bg-brass-500 px-3 py-1.5 text-xs font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass">
+          Apply recommendation
+        </button>
+        <button className="rounded-md border border-stone-300 dark:border-stone-600 px-3 py-1.5 text-xs font-medium text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700">
+          Dismiss
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CommanderView() {
+  const [location, setLocation] = useState("all");
+  const [duration, setDuration] = useState("all");
+  const [shiftType, setShiftType] = useState("all");
+
+  const filtered = useMemo(() => {
+    return SUBUNITS.filter((u) => {
+      if (location !== "all" && u.location !== location) return false;
+      if (shiftType !== "all" && u.shiftType !== shiftType) return false;
+      if (duration === "lt90" && !(u.deployment < 90)) return false;
+      if (duration === "90to120" && !(u.deployment >= 90 && u.deployment <= 120)) return false;
+      if (duration === "gt120" && !(u.deployment > 120)) return false;
+      return true;
+    });
+  }, [location, duration, shiftType]);
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="flex items-start gap-3 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 px-4 py-3">
+        <Lock size={16} className="mt-0.5 shrink-0 text-stone-500 dark:text-stone-400" />
+        <p className="text-xs text-stone-500 dark:text-stone-400">
+          All figures below are aggregated with k-anonymity (k &ge; 15). No individual names, IDs, or ranks are visible in this view.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-3">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-stone-500 dark:text-stone-400">
+          <Filter size={13} /> Filters
+        </span>
+        <select
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          className="rounded border border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-900 px-2 py-1.5 text-xs text-stone-800 dark:text-stone-200 focus:border-brass-500 dark:focus:border-brass-400 focus:outline-none focus:ring-2 focus:ring-brass-500/15 dark:focus:ring-brass-400/15"
+        >
+          <option value="all">All locations</option>
+          {[...new Set(SUBUNITS.map((u) => u.location))].map((loc) => (
+            <option key={loc} value={loc}>
+              {loc}
+            </option>
+          ))}
+        </select>
+        <select
+          value={duration}
+          onChange={(e) => setDuration(e.target.value)}
+          className="rounded border border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-900 px-2 py-1.5 text-xs text-stone-800 dark:text-stone-200 focus:border-brass-500 dark:focus:border-brass-400 focus:outline-none focus:ring-2 focus:ring-brass-500/15 dark:focus:ring-brass-400/15"
+        >
+          <option value="all">All deployment lengths</option>
+          <option value="lt90">Under 90 days</option>
+          <option value="90to120">90–120 days</option>
+          <option value="gt120">Over 120 days</option>
+        </select>
+        <select
+          value={shiftType}
+          onChange={(e) => setShiftType(e.target.value)}
+          className="rounded border border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-900 px-2 py-1.5 text-xs text-stone-800 dark:text-stone-200 focus:border-brass-500 dark:focus:border-brass-400 focus:outline-none focus:ring-2 focus:ring-brass-500/15 dark:focus:ring-brass-400/15"
+        >
+          <option value="all">All shift types</option>
+          <option value="night-heavy">Night-heavy</option>
+          <option value="mixed">Mixed</option>
+          <option value="day-heavy">Day-heavy</option>
+        </select>
+        {(location !== "all" || duration !== "all" || shiftType !== "all") && (
+          <button
+            onClick={() => {
+              setLocation("all");
+              setDuration("all");
+              setShiftType("all");
+            }}
+            className="text-xs text-stone-700 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      <div>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-stone-900 dark:text-stone-100 font-display">
+          <Users size={15} className="text-stone-500 dark:text-stone-400" /> Unit operational readiness matrix
+        </h2>
+        {filtered.length === 0 ? (
+          <p className="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-6 text-center text-xs text-stone-600 dark:text-stone-500">
+            No subunits match the current filters.
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {filtered.map((u) => (
+              <SubunitCard key={u.id} unit={u} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-5">
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-stone-900 dark:text-stone-100 font-display">
+          <AlertTriangle size={15} className="text-amber-600 dark:text-amber-400" /> Heatmap of systemic risk factors
+        </h2>
+        <HeatmapGrid units={filtered.length ? filtered : SUBUNITS} />
+      </div>
+
+      <div className="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-5">
+        <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-stone-900 dark:text-stone-100 font-display">
+          <TrendingUp size={15} className="text-stone-500 dark:text-stone-400" /> Predictive burnout forecasting
+        </h2>
+        <p className="mb-2 text-xs text-stone-600 dark:text-stone-500">30-day projected operational exhaustion index, force-wide</p>
+        <BurnoutChart />
+      </div>
+
+      <div>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-stone-900 dark:text-stone-100 font-display">
+          <ClipboardList size={15} className="text-stone-500 dark:text-stone-400" /> Automated workload balancing — action cards
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {ACTION_CARDS.map((a) => (
+            <ActionCard key={a.id} action={a} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Welfare Officer View                                                    */
+/* ---------------------------------------------------------------------- */
+
+function XAIModal({ selectedCase, onClose, onAction }) {
+  return (
+    <ModalShell
+      title={`${selectedCase.id} — Explainable AI breakdown`}
+      subtitle={`Risk score ${selectedCase.risk} / 100 \u00B7 ${selectedCase.unit}`}
+      icon={<ShieldAlert size={18} className="mt-0.5 text-red-600 dark:text-red-400" />}
+      onClose={onClose}
+      wide
+    >
+      <div className="space-y-5">
+        <div>
+          <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">
+            <Info size={12} /> Primary risk contributors (SHAP values)
+          </p>
+          <div className="space-y-3">
+            {selectedCase.factors.map((f) => (
+              <div key={f.label}>
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="font-medium text-stone-800 dark:text-stone-200">{f.label}</span>
+                  <span className="text-stone-500 dark:text-stone-400" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {f.pct}%
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-stone-50 dark:bg-stone-900">
+                  <div className="h-full rounded-full bg-stone-500 dark:bg-stone-400" style={{ width: `${f.pct}%` }} />
+                </div>
+                <p className="mt-1 text-[11px] text-stone-600 dark:text-stone-500">{f.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-md border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-900 p-3">
+          <p className="flex items-start gap-1.5 text-[11px] text-stone-600 dark:text-stone-500">
+            <Lock size={12} className="mt-0.5 shrink-0" />
+            This breakdown is derived from anonymized behavioral and self-reported signals. No raw personal entries are shown to the welfare officer.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button
+            onClick={() => onAction("checkin")}
+            className="flex items-center gap-1.5 rounded-md bg-brass-500 px-3 py-2 text-xs font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass"
+          >
+            <PhoneCall size={13} /> Schedule anonymous welfare check-in
+          </button>
+          <button
+            onClick={() => onAction("leave")}
+            className="flex items-center gap-1.5 rounded-md border border-stone-300 dark:border-stone-600 px-3 py-2 text-xs font-medium text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700"
+          >
+            <Calendar size={13} /> Recommend 7-day R&amp;R / leave clearance
+          </button>
+          <button
+            onClick={() => onAction("guide")}
+            className="flex items-center gap-1.5 rounded-md border border-stone-300 dark:border-stone-600 px-3 py-2 text-xs font-medium text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700"
+          >
+            <Moon size={13} /> Provide sleep recovery guide
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+function LeaveConfirmModal({ caseId, kind, onClose }) {
+  const copy = {
+    checkin: {
+      title: "Anonymous welfare check-in scheduled",
+      body: `A confidential check-in has been queued for ${caseId}. The service member will be notified without disclosing the referring officer.`,
+      icon: <PhoneCall size={18} className="mt-0.5 text-stone-700 dark:text-stone-300" />,
+    },
+    leave: {
+      title: "R&R recommendation submitted",
+      body: `A 7-day R&R / leave clearance recommendation has been logged against ${caseId} for command review.`,
+      icon: <Calendar size={18} className="mt-0.5 text-stone-700 dark:text-stone-300" />,
+    },
+    guide: {
+      title: "Sleep recovery guide sent",
+      body: `A sleep recovery protocol has been delivered privately to the service member behind ${caseId}.`,
+      icon: <Moon size={18} className="mt-0.5 text-stone-700 dark:text-stone-300" />,
+    },
+  }[kind];
+
+  return (
+    <ModalShell title={copy.title} icon={copy.icon} onClose={onClose}>
+      <div className="flex flex-col items-center gap-3 py-4 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/30">
+          <Check size={22} />
+        </div>
+        <p className="text-sm text-stone-700 dark:text-stone-300">{copy.body}</p>
+        <button
+          onClick={onClose}
+          className="mt-2 rounded-md bg-brass-500 px-4 py-2 text-sm font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass"
+        >
+          Done
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function CaseRow({ item, onOpen }) {
+  const c = riskColor(item.risk);
+  return (
+    <button
+      onClick={() => onOpen(item)}
+      className="card-lift group flex w-full items-center justify-between gap-3 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-4 text-left"
+    >
+      <div className="flex items-center gap-3">
+        <div className={`flex h-9 w-9 items-center justify-center rounded-md ${c.soft} ${c.text}`}>
+          <ShieldAlert size={16} />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-stone-900 dark:text-stone-100" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            {item.id}
+          </p>
+          <p className="text-[11px] text-stone-600 dark:text-stone-500">
+            {item.unit} &middot; flagged {item.flaggedDaysAgo === 0 ? "today" : `${item.flaggedDaysAgo}d ago`}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className={`rounded px-2 py-0.5 text-xs font-semibold ${c.soft} ${c.text}`}>{item.risk}</span>
+        <ChevronRight size={16} className="text-stone-400 dark:text-stone-600 transition-colors group-hover:text-brass-500 dark:group-hover:text-brass-400" />
+      </div>
+    </button>
+  );
+}
+
+function WelfareView() {
+  const [openCase, setOpenCase] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+  const [notes, setNotes] = useState("");
+
+  const sorted = [...CASES].sort((a, b) => b.risk - a.risk);
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="flex items-start gap-3 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 px-4 py-3">
+        <Stethoscope size={16} className="mt-0.5 shrink-0 text-stone-500 dark:text-stone-400" />
+        <p className="text-xs text-stone-500 dark:text-stone-400">
+          Case tokens are anonymized. Identity is only revealed after officer authentication at point of intervention, per protocol.
+        </p>
+      </div>
+
+      <div>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-stone-900 dark:text-stone-100 font-display">
+          <ClipboardList size={15} className="text-stone-500 dark:text-stone-400" /> Triage queue
+        </h2>
+        <div className="space-y-2.5">
+          {sorted.map((c) => (
+            <CaseRow key={c.id} item={c} onOpen={setOpenCase} />
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-stone-900 dark:text-stone-100 font-display">
+            <FileText size={15} className="text-stone-500 dark:text-stone-400" /> Secure clinical notes
+          </h2>
+          <span className="flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400">
+            <Lock size={11} /> Locally encrypted
+          </span>
+        </div>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Log session notes, observations, or follow-up actions..."
+          rows={4}
+          className="w-full resize-none rounded-md border border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-900 px-3 py-2 text-sm text-stone-800 dark:text-stone-200 placeholder-stone-400 dark:placeholder-stone-600 focus:border-brass-500 dark:focus:border-brass-400 focus:outline-none focus:ring-2 focus:ring-brass-500/15 dark:focus:ring-brass-400/15"
+        />
+        <div className="mt-2 flex justify-end">
+          <button
+            disabled={!notes.trim()}
+            onClick={() => setNotes("")}
+            className="flex items-center gap-1.5 rounded-md bg-brass-500 px-3 py-1.5 text-xs font-semibold text-stone-950 hover:bg-brass-400 transition-colors shadow-brass disabled:cursor-not-allowed disabled:bg-stone-200 dark:disabled:bg-stone-700 disabled:text-stone-400 dark:disabled:text-stone-500"
+          >
+            <Send size={12} /> Save note
+          </button>
+        </div>
+      </div>
+
+      {openCase && (
+        <XAIModal
+          selectedCase={openCase}
+          onClose={() => setOpenCase(null)}
+          onAction={(kind) => {
+            setConfirm({ caseId: openCase.id, kind });
+            setOpenCase(null);
+          }}
+        />
+      )}
+
+      {confirm && <LeaveConfirmModal caseId={confirm.caseId} kind={confirm.kind} onClose={() => setConfirm(null)} />}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Root                                                                    */
+/* ---------------------------------------------------------------------- */
+
+function getInitialTheme() {
+  try {
+    const stored = window.localStorage.getItem("prahari-theme");
+    if (stored === "light" || stored === "dark") return stored;
+  } catch (e) {
+    /* localStorage unavailable — fall back to system preference */
+  }
+  if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+    return "light";
+  }
+  return "dark";
+}
+
+function PrahariApp() {
+  const [authenticated, setAuthenticated] = useState(false);
+  const [role, setRole] = useState("personnel");
+  const [theme, setTheme] = useState(getInitialTheme);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    try {
+      window.localStorage.setItem("prahari-theme", theme);
+    } catch (e) {
+      /* ignore persistence errors */
+    }
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+
+  if (!authenticated) {
+    return (
+      <LoginPortal
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onAuthenticated={(r) => {
+          setRole(r);
+          setAuthenticated(true);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
+      <TopBar role={role} onLogout={() => setAuthenticated(false)} theme={theme} onToggleTheme={toggleTheme} />
+
+      {role === "personnel" && <PersonnelView />}
+      {role === "commander" && <CommanderView />}
+      {role === "welfare" && <WelfareView />}
+
+      <footer className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 text-center text-[11px] text-stone-400 dark:text-stone-600">
+        Prahari is a decision-support tool. It does not replace clinical judgment or established welfare protocols.
+      </footer>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Mount                                                                   */
+/* ---------------------------------------------------------------------- */
+
+const rootEl = document.getElementById("root");
+const root = createRoot(rootEl);
+root.render(<PrahariApp />);
+
+</script>
+</body>
+</html>
